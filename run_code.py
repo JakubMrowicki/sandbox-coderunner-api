@@ -22,7 +22,7 @@ class _Tools:
     class Valves(pydantic.BaseModel):
         _VALVE_OVERRIDE_ENVIRONMENT_VARIABLE_NAME_PREFIX = "CODE_EVAL_VALVE_OVERRIDE_"
         SANDBOX_API_URL: str = pydantic.Field(
-            default="http://localhost:5000/execute",
+            default="http://sandboxrunner:5000/execute",
             description=f"URL of the Sandbox API; may be overridden by environment variable {_VALVE_OVERRIDE_ENVIRONMENT_VARIABLE_NAME_PREFIX}SANDBOX_API_URL.",
         )
         DEBUG: bool = pydantic.Field(
