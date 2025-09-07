@@ -9,42 +9,45 @@ This API is designed to run in a dedicated, isolated environment. A Proxmox LXC 
 ### Proxmox LXC Container Setup (Recommended)
 
 1.  **Create the LXC Container:**
-    *   In the Proxmox web interface, click "Create CT".
-    *   **General:** Give the container a hostname and password.
-    *   **Template:** Use a recent version of a minimal Linux distribution (e.g., Debian or Ubuntu).
-    *   **Disks:** A disk size of 8 GB should be sufficient.
-    *   **CPU:** 1 or 2 cores should be enough.
-    *   **Memory:** 512 MB of RAM is a good starting point.
-    *   **Network:** Use a bridged or NATed network, depending on your network configuration.
-    *   **DNS:** Use your network's DNS servers.
-    *   **Confirm and Finish.**
+
+    - In the Proxmox web interface, click "Create CT".
+    - **General:** Give the container a hostname and password.
+    - **Template:** Use a recent version of a minimal Linux distribution (e.g., Debian or Ubuntu).
+    - **Disks:** A disk size of 8 GB should be sufficient.
+    - **CPU:** 1 or 2 cores should be enough.
+    - **Memory:** 512 MB of RAM is a good starting point.
+    - **Network:** Use a bridged or NATed network, depending on your network configuration.
+    - **DNS:** Use your network's DNS servers.
+    - **Confirm and Finish.**
 
 2.  **Container Configuration:**
-    *   Once the container is created, select it in the Proxmox interface and go to **Options**.
-    *   **Enable Nesting and Keyctl:**
-        *   Select "Features" and click "Edit".
-        *   Enable both "nesting" and "keyctl". This is required for gVisor to work correctly.
+
+    - Once the container is created, select it in the Proxmox interface and go to **Options**.
+    - **Enable Nesting and Keyctl:**
+      - Select "Features" and click "Edit".
+      - Enable both "nesting" and "keyctl". This is required for gVisor to work correctly.
 
 3.  **Install Dependencies inside the LXC Container:**
-    *   Start the container and open a console session.
-    *   Update the package manager:
-        ```bash
-        apt update && apt upgrade -y
-        ```
-    *   Install Python, pip, and venv:
-        ```bash
-        apt install python3 python3-pip python3-venv -y
-        ```
-    *   **Install gVisor (`runsc`):** Follow the official gVisor installation instructions for your chosen distribution. You can find them here: [https://gvisor.dev/docs/user_guide/install/](https://gvisor.dev/docs/user_guide/install/)
+
+    - Start the container and open a console session.
+    - Update the package manager:
+      ```bash
+      apt update && apt upgrade -y
+      ```
+    - Install Python, pip, and venv:
+      ```bash
+      apt install python3 python3-pip python3-venv -y
+      ```
+    - **Install gVisor (`runsc`):** Follow the official gVisor installation instructions for your chosen distribution. You can find them here: [https://gvisor.dev/docs/user_guide/install/](https://gvisor.dev/docs/user_guide/install/)
 
 4.  **Deploy the Sandbox API:**
-    *   Clone this repository into the LXC container.
-    *   Install the Python dependencies:
-        ```bash
-        python3 -m venv venv
-        source venv/bin/activate
-        pip install -r requirements.txt
-        ```
+    - Clone this repository into the LXC container.
+    - Install the Python dependencies:
+      ```bash
+      python3 -m venv venv
+      source venv/bin/activate
+      pip install -r requirements.txt
+      ```
 
 ### Can a regular VM be used?
 
@@ -101,3 +104,53 @@ A stream of JSON objects. The last object will contain the final result.
   "error": "..."
 }
 ```
+
+## Running as a systemd service
+
+To run the Sandbox API as a systemd service that starts on boot, follow these steps:
+
+1.  **Create a systemd service file:**
+
+    Create a file named `sandbox-coderunner-api.service` in the `/etc/systemd/system/` directory with the following content. Make sure to replace `root` with your username if it's different and the path if that also is different.
+
+    ```ini
+    [Unit]
+    Description=Sandbox Coderunner API
+    After=network.target
+
+    [Service]
+    User=root
+    Group=root
+    WorkingDirectory=/root/sandboxcoderunner
+    ExecStart=/root/sandboxcoderunner/venv/bin/python /root/sandboxcoderunner/app.py
+    Restart=always
+
+    [Install]
+    WantedBy=multi-user.target
+    ```
+
+2.  **Reload the systemd daemon:**
+
+    ```bash
+    sudo systemctl daemon-reload
+    ```
+
+3.  **Enable the service to start on boot:**
+
+    ```bash
+    sudo systemctl enable sandbox-coderunner-api.service
+    ```
+
+4.  **Start the service:**
+
+    ```bash
+    sudo systemctl start sandbox-coderunner-api.service
+    ```
+
+5.  **Check the status of the service:**
+
+    You can check the status of the service to make sure it's running correctly:
+
+    ```bash
+    sudo systemctl status sandbox-coderunner-api.service
+    ```
