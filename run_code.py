@@ -1,10 +1,10 @@
 """
-id: sandbox_code
-title: Sandbox Code
-description: Run arbitrary Python or Bash code safely in a gVisor sandbox. This tool requires a running Sandbox API. The URL of the API can be configured using the SANDBOX_API_URL environment variable.
+id: code_sandbox
+title: Code Sandbox
+description: Run arbitrary Python or Bash code safely in a gVisor sandbox. This tool requires a running Sandbox API.
 author: jakubmrowicki
 author_url: https://github.com/jakubmrowicki/sandbox_code
-version: 0.0.2
+version: 0.0.3
 license: Apache-2.0
 """
 
@@ -66,7 +66,7 @@ class _Tools:
         """
         Run a bash command-line or script safely in a gVisor sandbox.
 
-        :param bash_command: Bash command or script to run.
+        :param bash_command: Bash command or script to run in plaintext.
 
         :return: A JSON object with the following fields: `bash_command`, `status`, `output`. In most cases, when `status` is "OK", the user is interested in the content of the `output` field. Otherwise, report the `status` field first.
         """
@@ -92,7 +92,7 @@ class _Tools:
         """
         Run Python code safely in a gVisor sandbox.
 
-        :param python_code: Python code to run.
+        :param python_code: Python code to run in plaintext.
 
         :return: A JSON object with the following fields: `python_code`, `status`, `output`. In most cases, when `status` is "OK", the user is interested in the content of the `output` field. Otherwise, report the `status` field first.
         """
@@ -120,7 +120,7 @@ class _Tools:
         Run code safely by sending it to a sandbox API.
 
         :param language: Programming language of the code.
-        :param code: The code to run.
+        :param code: The code to run in plaintext
         :param event_emitter: Event emitter to send status updates to.
 
         :return: A dictionary with the following fields: `status`, `output`.
@@ -156,10 +156,20 @@ class _Tools:
             final_output = json.loads(full_response[-1])
 
             await emitter.status("Code execution complete.")
+
+            stdout = final_output.get("stdout")
+            stderr = final_output.get("stderr")
+            output = ""
+            if stdout:
+                output += stdout
+            if stderr:
+                if output:
+                    output += "\n"
+                output += stderr
             
             return {
                 "status": "OK" if final_output.get("exit_code") == 0 else "ERROR",
-                "output": final_output.get("stdout") or final_output.get("stderr"),
+                "output": output,
             }
 
         except requests.exceptions.RequestException as e:
