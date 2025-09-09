@@ -1,10 +1,10 @@
 """
 id: code_sandbox
 title: Code Sandbox
-description: Run arbitrary Python or Bash code safely in a gVisor sandbox. This tool requires a running Sandbox API.
+description: Run arbitrary Python (with package dependencies) or Bash code safely in a gVisor sandbox. This tool requires a running Sandbox API. Python execution supports installing packages via requirements parameter.
 author: jakubmrowicki
 author_url: https://github.com/jakubmrowicki/sandbox_code
-version: 0.0.3
+version: 0.0.5
 license: Apache-2.0
 """
 
@@ -87,18 +87,29 @@ class _Tools:
     async def run_python_code(
         self,
         python_code: str,
+        requirements: str = None,
         __event_emitter__: typing.Callable[[dict], typing.Any] = None,
     ) -> str:
         """
-        Run Python code safely in a gVisor sandbox.
-
+        Run Python code safely in a gVisor sandbox with optional package dependencies.
+        
         :param python_code: Python code to run in plaintext.
-
-        :return: A JSON object with the following fields: `python_code`, `status`, `output`. In most cases, when `status` is "OK", the user is interested in the content of the `output` field. Otherwise, report the `status` field first.
+        :param requirements: A string containing package requirements (like a requirements.txt file) 
+                            for the Python code. Use newline-separated package specifications 
+                            (e.g., "numpy\npandas\nmatplotlib" or "numpy==1.24.0").
+        :return: A JSON object with the following fields: `python_code`, `status`, `output`. 
+                In most cases, when `status` is "OK", the user is interested in the content 
+                of the `output` field. Otherwise, report the `status` field first.
+        
+        Example requirements parameter:
+            "numpy"                    # Single package
+            "numpy\npandas"            # Multiple packages
+            "numpy==1.24.0\npandas"    # Specific version
         """
         result = await self._run_code(
             language="python",
             code=python_code,
+            requirements=requirements,
             event_emitter=__event_emitter__,
         )
         return json.dumps(
@@ -114,15 +125,15 @@ class _Tools:
         self,
         language: str,
         code: str,
+        requirements: typing.Optional[str] = None,  # Consistent type hint
         event_emitter: typing.Callable[[dict], typing.Any] = None,
     ) -> str:
         """
         Run code safely by sending it to a sandbox API.
-
         :param language: Programming language of the code.
-        :param code: The code to run in plaintext
+        :param code: The code to run in plaintext.
+        :param requirements: Package requirements for Python code (newline-separated package specifications).
         :param event_emitter: Event emitter to send status updates to.
-
         :return: A dictionary with the following fields: `status`, `output`.
         """
         valves = self.valves
@@ -132,9 +143,13 @@ class _Tools:
         await emitter.status("Connecting to Sandbox API...")
 
         try:
+            payload = {"code": code, "language": language}
+            if language == "python" and requirements:
+                payload["requirements"] = requirements
+
             response = requests.post(
                 valves.SANDBOX_API_URL,
-                json={"code": code, "language": language},
+                json=payload,
                 stream=True,
                 timeout=30
             )
@@ -199,10 +214,12 @@ class Tools:
     async def run_python_code(
         self,
         python_code: str,
+        requirements: typing.Optional[str] = None,
         __event_emitter__: typing.Callable[[dict], typing.Any] = None,
     ) -> str:
         return await _Tools(self.valves).run_python_code(
             python_code=python_code,
+            requirements=requirements,
             __event_emitter__=__event_emitter__,
         )
 
